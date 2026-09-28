@@ -1,60 +1,60 @@
-# ========================================================
-#   SIMPONI Pesantren Vercel Iframe - Automated Git Push (PowerShell)
-#   Target: https://github.com/santrimanofficial26-oss/WEBSITESIMPONIPESANTREN.git
-# ========================================================
+$ErrorActionPreference = 'Stop'
+$expectedRemote = 'https://github.com/santrimanofficial26-oss/WEBSITESIMPONIPESANTREN.git'
+$repoPath = (Resolve-Path -LiteralPath $PSScriptRoot).Path
 
-$ErrorActionPreference = "Stop"
-Set-Location -Path $PSScriptRoot
-
-Write-Host "========================================================" -ForegroundColor Cyan
-Write-Host "  SIMPONI Pesantren Vercel Iframe - Automated Git Push" -ForegroundColor Green
-Write-Host "  Target: https://github.com/santrimanofficial26-oss/WEBSITESIMPONIPESANTREN.git" -ForegroundColor Yellow
-Write-Host "========================================================`n" -ForegroundColor Cyan
-
-# 1. Cek git
-if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-    Write-Host "[ERROR] Git CLI tidak ditemukan pada sistem PATH Anda." -ForegroundColor Red
-    Write-Host "Silakan download dan install Git: https://git-scm.com/" -ForegroundColor Yellow
-    exit 1
-}
-
-# 2. Inisialisasi Git jika belum ada
-if (-not (Test-Path ".git")) {
-    Write-Host "[*] Menginisialisasi Git repository di folder vercel-iframe..." -ForegroundColor Cyan
-    git init
-    git branch -M main
-    git remote add origin "https://github.com/santrimanofficial26-oss/WEBSITESIMPONIPESANTREN.git"
-} else {
-    Write-Host "[*] Repositori Git lokal sudah terdeteksi di folder ini." -ForegroundColor Cyan
-    git remote set-url origin "https://github.com/santrimanofficial26-oss/WEBSITESIMPONIPESANTREN.git"
-}
-
-# 3. Add & Commit
-Write-Host "[*] Menambahkan seluruh file wrapper..." -ForegroundColor Cyan
-git add -A
-
-$timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-$commitMsg = "Deploy SIMPONI Vercel Iframe Wrapper - $timestamp"
-Write-Host "[*] Membuat commit: '$commitMsg'..." -ForegroundColor Cyan
-try {
-    git commit -m "$commitMsg"
-} catch {
-    Write-Host "[INFO] Tidak ada perubahan baru untuk di-commit." -ForegroundColor Gray
-}
-
-# 4. Push ke GitHub
-Write-Host "[*] Mengunggah (push) ke branch main GitHub..." -ForegroundColor Cyan
-try {
-    git push -u origin main
-    Write-Host "`n[SUKSES] Berhasil diunggah ke GitHub!" -ForegroundColor Green
-    Write-Host "URL Repo: https://github.com/santrimanofficial26-oss/WEBSITESIMPONIPESANTREN" -ForegroundColor Green
-} catch {
-    Write-Host "[INFO] Mencoba sinkronisasi force push..." -ForegroundColor Yellow
-    try {
-        git push -u origin main --force
-        Write-Host "`n[SUKSES] Berhasil force push ke GitHub!" -ForegroundColor Green
-        Write-Host "URL Repo: https://github.com/santrimanofficial26-oss/WEBSITESIMPONIPESANTREN" -ForegroundColor Green
-    } catch {
-        Write-Host "`n[PERINGATAN] Gagal melakukan push. Pastikan kredensial/token GitHub Anda telah login di sistem ini." -ForegroundColor Red
+function Run-Git {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$GitArgs)
+    & git -C $repoPath @GitArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "Git gagal (exit $LASTEXITCODE): git $($GitArgs -join ' ')"
     }
+}
+
+try {
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        throw 'Git belum terpasang atau belum tersedia di PATH.'
+    }
+
+    $actualRoot = (& git -C $repoPath rev-parse --show-toplevel 2>$null)
+    if ($LASTEXITCODE -ne 0 -or -not $actualRoot -or
+        [IO.Path]::GetFullPath($actualRoot.Trim()) -ne [IO.Path]::GetFullPath($repoPath)) {
+        throw 'Folder vercel-iframe harus merupakan repositori Git sendiri. Clone repositori Vercel dahulu.'
+    }
+
+    $branch = (& git -C $repoPath branch --show-current).Trim()
+    if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') {
+        throw "Branch aktif harus main. Saat ini: '$branch'."
+    }
+
+    $remote = (& git -C $repoPath remote get-url origin 2>$null)
+    if ($LASTEXITCODE -ne 0 -or -not $remote -or $remote.TrimEnd('/') -ne $expectedRemote) {
+        throw "Remote origin tidak sesuai. Diharapkan: $expectedRemote"
+    }
+
+    Write-Host 'Memeriksa perubahan terbaru di GitHub...' -ForegroundColor Cyan
+    Run-Git fetch origin main
+    & git -C $repoPath merge-base --is-ancestor origin/main HEAD
+    if ($LASTEXITCODE -ne 0) {
+        throw 'origin/main sudah lebih baru atau riwayat berbeda. Sinkronkan perubahan remote secara manual sebelum push.'
+    }
+
+    Write-Host 'Menyiapkan perubahan wrapper Vercel...' -ForegroundColor Cyan
+    Run-Git add -A
+    & git -C $repoPath diff --cached --quiet
+    if ($LASTEXITCODE -eq 1) {
+        Run-Git diff --cached --stat
+        $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+        Run-Git commit -m "Update SIMPONI Vercel wrapper $stamp"
+    } elseif ($LASTEXITCODE -eq 0) {
+        Write-Host 'Tidak ada perubahan baru untuk di-commit.' -ForegroundColor Yellow
+    } else {
+        throw 'Gagal memeriksa perubahan yang sudah di-stage.'
+    }
+
+    Write-Host 'Mengirim branch main ke GitHub...' -ForegroundColor Cyan
+    Run-Git push -u origin main
+    Write-Host 'Selesai. GitHub menerima perubahan wrapper Vercel.' -ForegroundColor Green
+} catch {
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    exit 1
 }

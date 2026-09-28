@@ -56,6 +56,45 @@
             z-index: 10;
             background-color: #041c14;
         }
+
+        #simponi-camera-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(2, 10, 18, .84);
+        }
+
+        #simponi-camera-overlay.is-open { display: flex; }
+
+        .simponi-camera-panel {
+            width: min(100%, 560px);
+            max-height: 95dvh;
+            overflow: auto;
+            padding: 20px;
+            border: 1px solid #167c69;
+            border-radius: 20px;
+            background: #09251f;
+            color: #fff;
+        }
+
+        .simponi-camera-panel h2 { font-size: 18px; margin-bottom: 8px; }
+        .simponi-camera-panel p { font-size: 13px; line-height: 1.5; margin-bottom: 14px; color: #cbd5e1; }
+        #simponiCameraReader { width: 100%; overflow: hidden; border-radius: 12px; background: #000; }
+        #simponiCameraStatus { min-height: 24px; margin-top: 12px; }
+        #simponiCameraStop {
+            margin-top: 12px;
+            padding: 10px 16px;
+            border: 0;
+            border-radius: 10px;
+            background: #0d9488;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -69,6 +108,16 @@
         title="Portal Resmi SIMPONI - Pondok Pesantren Hidayatul Mubtadi'in">
     </iframe>
 
+    <div id="simponi-camera-overlay" role="dialog" aria-modal="true" aria-labelledby="simponiCameraTitle">
+        <div class="simponi-camera-panel">
+            <h2 id="simponiCameraTitle">Scan QR Santri</h2>
+            <p>Izinkan kamera browser, lalu arahkan QR kartu santri ke area pemindaian.</p>
+            <div id="simponiCameraReader"></div>
+            <p id="simponiCameraStatus" role="status" aria-live="polite">Menyiapkan kamera...</p>
+            <button id="simponiCameraStop" type="button">Matikan Kamera</button>
+        </div>
+    </div>
+
     <script>
         // Prevent double tap zooming on iOS Safari
         document.addEventListener('touchend', function (event) {
@@ -79,6 +128,8 @@
             window.lastTouchEnd = now;
         }, false);
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="./camera-bridge.js"></script>
 </body>
 
 </html>
