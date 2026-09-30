@@ -51,7 +51,7 @@
             if (!pendingScan || pendingScan.id !== scanId) return;
             pendingScan = null;
             setStatus('Aplikasi belum merespons. Coba arahkan QR kembali.');
-        }, 15000);
+        }, 60000);
         pendingScan = { id: scanId, timer };
         setStatus('QR terbaca. Menyimpan absensi...');
         send('scan', { scanId, code });
